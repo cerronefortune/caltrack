@@ -594,7 +594,30 @@
     background: var(--surface2);
     border-radius: 8px;
     padding: 8px 10px;
+    cursor: default;
+    transition: background 0.15s, opacity 0.15s, transform 0.15s;
+    touch-action: none;
+    user-select: none;
   }
+  .manage-item.dragging {
+    opacity: 0.45;
+    transform: scale(0.97);
+    background: var(--surface);
+  }
+  .manage-item.drag-over {
+    border: 1px solid var(--accent);
+    background: var(--surface);
+  }
+  .drag-handle {
+    color: var(--muted);
+    font-size: 14px;
+    cursor: grab;
+    padding: 0 2px;
+    line-height: 1;
+    touch-action: none;
+    flex-shrink: 0;
+  }
+  .drag-handle:active { cursor: grabbing; }
 
   .manage-item-name { flex: 1; font-size: 12px; }
   .manage-item-macros { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
@@ -1499,8 +1522,13 @@ function closeManageModal() { document.getElementById('manageModal').classList.r
 
 function renderManageList() {
   const list = document.getElementById('menuManageList');
+  if (!state.menu.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">No items yet</div>';
+    return;
+  }
   list.innerHTML = state.menu.map(item => `
-    <div class="manage-item">
+    <div class="manage-item" data-id="${item.id}" draggable="true">
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
       <span style="font-size:16px">${item.emoji}</span>
       <span class="manage-item-name">${item.name}</span>
       <div class="manage-item-macros">
@@ -1509,10 +1537,93 @@ function renderManageList() {
       </div>
       <button class="remove-btn" onclick="removeMenuItem(${item.id})" style="margin-left:6px">×</button>
     </div>
-  `).join('') || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">No items yet</div>';
+  `).join('');
+  initDragSort(list);
 }
 
-function removeMenuItem(id) { state.menu = state.menu.filter(m => m.id !== id); renderManageList(); render(); }
+function removeMenuItem(id) { state.menu = state.menu.filter(m => m.id !== id); saveState(); renderManageList(); render(); }
+
+function initDragSort(list) {
+  let dragEl = null, touchStartY = 0, touchClone = null;
+
+  // ── Desktop drag-and-drop ──
+  list.querySelectorAll('.manage-item').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragEl = item;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      dragEl = null;
+      item.classList.remove('dragging');
+      list.querySelectorAll('.manage-item').forEach(i => i.classList.remove('drag-over'));
+      commitOrder(list);
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (!dragEl || dragEl === item) return;
+      list.querySelectorAll('.manage-item').forEach(i => i.classList.remove('drag-over'));
+      item.classList.add('drag-over');
+      const rect = item.getBoundingClientRect();
+      const mid  = rect.top + rect.height / 2;
+      if (e.clientY < mid) list.insertBefore(dragEl, item);
+      else list.insertBefore(dragEl, item.nextSibling);
+    });
+  });
+
+  // ── Mobile touch drag ──
+  list.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('touchstart', e => {
+      const item = handle.closest('.manage-item');
+      dragEl = item;
+      touchStartY = e.touches[0].clientY;
+      item.classList.add('dragging');
+
+      // Floating clone for visual feedback
+      const rect = item.getBoundingClientRect();
+      touchClone = item.cloneNode(true);
+      touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:0.85;pointer-events:none;z-index:9999;border:1px solid var(--accent);border-radius:8px;background:var(--surface2);`;
+      document.body.appendChild(touchClone);
+      e.preventDefault();
+    }, { passive: false });
+
+    handle.addEventListener('touchmove', e => {
+      if (!dragEl) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const dy = touch.clientY - touchStartY;
+      if (touchClone) touchClone.style.transform = `translateY(${dy}px)`;
+
+      // Find element under finger
+      dragEl.style.visibility = 'hidden';
+      const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.manage-item');
+      dragEl.style.visibility = '';
+      if (!target || target === dragEl) return;
+
+      list.querySelectorAll('.manage-item').forEach(i => i.classList.remove('drag-over'));
+      target.classList.add('drag-over');
+      const rect = target.getBoundingClientRect();
+      if (touch.clientY < rect.top + rect.height / 2) list.insertBefore(dragEl, target);
+      else list.insertBefore(dragEl, target.nextSibling);
+    }, { passive: false });
+
+    handle.addEventListener('touchend', () => {
+      if (!dragEl) return;
+      dragEl.classList.remove('dragging');
+      list.querySelectorAll('.manage-item').forEach(i => i.classList.remove('drag-over'));
+      if (touchClone) { touchClone.remove(); touchClone = null; }
+      dragEl = null;
+      commitOrder(list);
+    });
+  });
+}
+
+function commitOrder(list) {
+  const newOrder = [...list.querySelectorAll('.manage-item')].map(el => parseInt(el.dataset.id));
+  state.menu = newOrder.map(id => state.menu.find(m => m.id === id)).filter(Boolean);
+  saveState();
+  render();
+}
 
 function addMenuItem() {
   const name    = document.getElementById('newItemName').value.trim();
