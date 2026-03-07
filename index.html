@@ -584,6 +584,9 @@
     gap: 6px;
     max-height: 260px;
     overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     margin-bottom: 10px;
   }
 
@@ -596,7 +599,7 @@
     padding: 8px 10px;
     cursor: default;
     transition: background 0.15s, opacity 0.15s, transform 0.15s;
-    touch-action: none;
+    touch-action: pan-y;
     user-select: none;
   }
   .manage-item.dragging {
@@ -866,7 +869,10 @@
 <!-- Manage Modal -->
 <div class="modal-overlay" id="manageModal">
   <div class="modal" style="max-width:380px;">
-    <div class="modal-title">Manage Menu</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="modal-title" style="margin-bottom:0">Manage Menu</div>
+      <button onclick="closeManageModal()" style="background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:0 2px;font-family:monospace;" aria-label="Close">×</button>
+    </div>
     <div class="menu-manage-list" id="menuManageList"></div>
     <div class="manage-divider"></div>
     <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Add New Item</div>
@@ -1589,7 +1595,7 @@ function initDragSort(list) {
 
     handle.addEventListener('touchmove', e => {
       if (!dragEl) return;
-      e.preventDefault();
+      e.preventDefault(); // only fires on handle, so normal list scroll is unaffected
       const touch = e.touches[0];
       const dy = touch.clientY - touchStartY;
       if (touchClone) touchClone.style.transform = `translateY(${dy}px)`;
