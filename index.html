@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cal · Track</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cal·Track">
+<meta name="theme-color" content="#0f0f0e">
+<meta name="description" content="Personal calorie & protein tracker">
+<link id="pwa-manifest" rel="manifest">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0e;
+    --surface: #1a1a18;
+    --surface2: #242420;
+    --accent: #e8c547;
+    --accent2: #ff6b35;
+    --text: #f0ede6;
+    --muted: #6b6860;
+    --border: #2e2e2a;
+    --danger: #ff4757;
+    --success: #2ed573;
+    --protein-color: #7bed9f;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    max-width: 480px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* ── STICKY TOP ZONE ── */
+  .sticky-top {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+  }
+
+  .header {
+    padding: 20px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+
+  .app-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+
+  .app-name span { color: var(--accent); }
+
+  .date-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+
+  .reset-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .reset-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* Rest day toggle */
+  .rest-day-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .rest-day-btn:hover { border-color: #a78bfa; color: #a78bfa; }
+
+  .rest-day-btn.active {
+    border-color: #a78bfa;
+    color: #a78bfa;
+    background: rgba(167,139,250,0.12);
+  }
+
+  .stats-section {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .stats-row { display: flex; gap: 12px; margin-bottom: 10px; }
+
+  .stat-box {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    transition: color 0.3s;
+  }
+
+  .stat-unit { font-size: 10px; color: var(--muted); margin-left: 2px; }
+  .stat-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .stat-sub span { color: var(--text); }
+
+  .bars-row { display: flex; flex-direction: column; gap: 6px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; }
+
+  .bar-label {
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    width: 50px;
+    flex-shrink: 0;
+  }
+
+  .bar-bg {
+    flex: 1;
+    height: 5px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    min-width: 0;
+  }
+
+  .bar-pct { font-size: 10px; color: var(--muted); width: 32px; text-align: right; flex-shrink: 0; }
+
+  .goal-controls { display: flex; gap: 8px; margin-top: 10px; }
+
+  .goal-btn {
+    flex: 1;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 5px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    text-align: center;
+  }
+
+  .goal-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── SCROLLABLE BODY ── */
+  .scroll-body {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 40px;
+  }
+
+  .section { padding: 16px 20px 0; }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .section-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ── MENU GRID ── */
+  .menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-bottom: 16px;
+  }
+
+  .menu-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .menu-item:hover { border-color: var(--accent); background: var(--surface2); }
+
+  /* Tap flash animation */
+  @keyframes tapFlash {
+    0%   { background: var(--surface); border-color: var(--border); transform: scale(1); }
+    20%  { background: rgba(232,197,71,0.22); border-color: var(--accent); transform: scale(0.96); }
+    60%  { background: rgba(46,213,115,0.15); border-color: var(--success); transform: scale(0.98); }
+    100% { background: var(--surface); border-color: var(--border); transform: scale(1); }
+  }
+
+  .menu-item.tapped {
+    animation: tapFlash 0.45s ease forwards;
+  }
+
+  /* Ripple */
+  .menu-item .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(232,197,71,0.35);
+    transform: scale(0);
+    animation: rippleAnim 0.45s linear;
+    pointer-events: none;
+  }
+
+  @keyframes rippleAnim {
+    to { transform: scale(4); opacity: 0; }
+  }
+
+  /* Tap count badge */
+  .tap-count-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.4);
+    transition: opacity 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    line-height: 1;
+  }
+
+  .menu-item.has-taps {
+    border-color: var(--accent) !important;
+    background: rgba(232,197,71,0.07);
+  }
+
+  .menu-item.has-taps .tap-count-badge {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Pop animation when count increments */
+  @keyframes badgePop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.35); }
+    100% { transform: scale(1); }
+  }
+
+  .tap-count-badge.pop {
+    animation: badgePop 0.25s ease;
+  }
+
+  .menu-item-emoji { font-size: 18px; margin-bottom: 1px; }
+
+  .menu-item-name {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .menu-item-macros { display: flex; gap: 6px; align-items: baseline; margin-top: 2px; }
+
+  .menu-item-cal {
+    font-size: 16px;
+    color: var(--accent);
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .menu-item-cal-unit { font-size: 9px; color: var(--muted); }
+  .menu-item-protein { font-size: 11px; color: var(--protein-color); margin-left: 2px; }
+
+  /* ── CUSTOM ENTRY (full width) ── */
+  .custom-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    margin-top: 10px;
+  }
+
+  .form-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .form-row:last-child { margin-bottom: 0; }
+
+  .form-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--muted); }
+
+  .input-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .add-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+
+  .add-btn:hover { background: #f0d060; }
+  .add-btn:active { transform: scale(0.96); }
+
+  .lookup-btn {
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .lookup-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .lookup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .lookup-btn .spin {
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .lookup-result {
+    background: rgba(232,197,71,0.08);
+    border: 1px solid rgba(232,197,71,0.25);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-top: 2px;
+  }
+
+  .lookup-result strong { color: var(--accent); }
+
+  /* ── TODAY'S LOG (full width) ── */
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 16px;
+  }
+
+  .log-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .log-name { font-size: 12px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log-time { font-size: 10px; color: var(--muted); margin: 0 10px; flex-shrink: 0; }
+  .log-macros { display: flex; gap: 8px; align-items: center; margin-right: 10px; flex-shrink: 0; }
+  .log-cal { font-size: 13px; color: var(--accent); font-weight: 500; min-width: 44px; text-align: right; }
+  .log-protein { font-size: 11px; color: var(--protein-color); min-width: 36px; text-align: right; }
+
+  .log-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    background: var(--surface2);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  .log-total-row span { color: var(--text); font-size: 13px; font-weight: 500; }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 17px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .remove-btn:hover { color: var(--danger); background: rgba(255,71,87,0.1); }
+
+  .empty-log {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 24px;
+    letter-spacing: 0.5px;
+  }
+
+  .manage-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 9px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+  }
+
+  .manage-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── MODALS ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    width: 100%;
+    max-width: 340px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+
+  .modal-btns { display: flex; gap: 8px; margin-top: 14px; }
+
+  .btn-cancel {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 9px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .btn-save {
+    flex: 1;
+    background: var(--accent);
+    border: none;
+    color: var(--bg);
+    border-radius: 8px;
+    padding: 9px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .menu-manage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+  }
+
+  .manage-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+
+  .manage-item-name { flex: 1; font-size: 12px; }
+  .manage-item-macros { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .manage-item-cal { color: var(--accent); font-size: 12px; }
+  .manage-item-prot { color: var(--protein-color); font-size: 10px; }
+  .manage-divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+  .over-goal { color: var(--danger) !important; }
+  .on-track  { color: var(--success) !important; }
+
+  /* Custom history dropdown */
+  .name-wrapper {
+    flex: 1;
+    position: relative;
+  }
+
+  .history-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    z-index: 50;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display: none;
+  }
+
+  .history-dropdown.open { display: block; }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+    transition: background 0.15s;
+  }
+
+  .history-item:last-child { border-bottom: none; }
+  .history-item:hover { background: rgba(232,197,71,0.1); }
+
+  .history-item-name {
+    font-size: 12px;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .history-item-macros {
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+  }
+
+  .history-item-macros span { color: var(--accent); }
+  .history-item-macros em   { color: var(--protein-color); font-style: normal; }
+
+  .history-empty {
+    padding: 12px;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 12px 5px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .history-header-label {
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .history-clear-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 10px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    padding: 0;
+    transition: color 0.2s;
+  }
+
+  .history-clear-btn:hover { color: var(--danger); }
+</style>
+</head>
+<body>
+
+<!-- ══ STICKY TOP ══ -->
+<div class="sticky-top">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="app-name">Cal<span>·</span>Track</div>
+        <div class="date-label" id="dateLabel"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="rest-day-btn" id="restDayBtn" onclick="toggleRestDay()">😴 Rest Day</button>
+        <button class="reset-btn" onclick="resetDay()">Reset Day</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-section">
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-label">Calories</div>
+        <div>
+          <span class="stat-value" id="totalCals">0</span>
+          <span class="stat-unit">kcal</span>
+        </div>
+        <div class="stat-sub" id="calRemaining"></div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Protein</div>
+        <div>
+          <span class="stat-value" id="totalProtein" style="color:var(--protein-color)">0</span>
+          <span class="stat-unit">g</span>
+        </div>
+        <div class="stat-sub" id="proteinRemaining"></div>
+      </div>
+    </div>
+
+    <div class="bars-row">
+      <div class="bar-row">
+        <div class="bar-label">Calories</div>
+        <div class="bar-bg"><div class="bar-fill" id="calBar" style="width:0%;background:var(--accent)"></div></div>
+        <div class="bar-pct" id="calPct">0%</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Protein</div>
+        <div class="bar-bg"><div class="bar-fill" id="proteinBar" style="width:0%;background:var(--protein-color)"></div></div>
+        <div class="bar-pct" id="proteinPct">0%</div>
+      </div>
+    </div>
+
+    <div class="goal-controls">
+      <button class="goal-btn" onclick="openGoalModal('cal')">⚡ Set Cal Goal</button>
+      <button class="goal-btn" onclick="openGoalModal('protein')">💪 Set Protein Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCROLLABLE BODY ══ -->
+<div class="scroll-body">
+
+  <!-- My Menu -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">My Menu</div>
+      <button class="manage-btn" onclick="openManageModal()">manage items</button>
+    </div>
+    <div class="menu-grid" id="menuGrid"></div>
+  </div>
+
+  <!-- Custom Entry -->
+  <div class="section">
+    <div class="section-title">Custom Entry</div>
+    <div class="custom-form">
+
+      <!-- Row 1: name + lookup -->
+      <div class="form-row">
+        <div class="name-wrapper">
+          <input class="form-input" id="customName" type="text" placeholder="Food or drink name…" autocomplete="off" />
+          <div class="history-dropdown" id="historyDropdown">
+            <div class="history-header">
+              <span class="history-header-label">Recent</span>
+              <button class="history-clear-btn" onclick="clearHistory()">clear</button>
+            </div>
+            <div id="historyList"></div>
+          </div>
+        </div>
+        <button class="lookup-btn" id="lookupBtn" onclick="lookupCalories()">
+          <span id="lookupIcon">🔍</span> Look Up
+        </button>
+      </div>
+
+      <!-- Lookup result -->
+      <div id="lookupResult" style="display:none;margin-bottom:10px;"></div>
+
+      <!-- Row 2: cal + protein + add -->
+      <div class="form-row">
+        <div style="flex:1">
+          <div class="input-label">Calories</div>
+          <input class="form-input" id="customCal" type="number" placeholder="kcal" inputmode="numeric" />
+        </div>
+        <div style="flex:1">
+          <div class="input-label">Protein (g)</div>
+          <input class="form-input" id="customProtein" type="number" placeholder="0" inputmode="numeric" />
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="add-btn" onclick="addCustom()">+ Add</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Today's Log -->
+  <div class="section">
+    <div class="section-title">Today's Log</div>
+    <div style="margin-top:10px">
+      <div id="logTotalsRow" style="display:none;" class="log-total-row">
+        <span>Total</span>
+        <div style="display:flex;gap:16px">
+          <div>Cals: <span id="logTotalCal">0</span></div>
+          <div>Protein: <span id="logTotalProt">0</span>g</div>
+        </div>
+      </div>
+      <div class="log-list" id="logList">
+        <div class="empty-log">Nothing logged yet — start eating!</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Goal Modal -->
+<div class="modal-overlay" id="goalModal">
+  <div class="modal">
+    <div class="modal-title" id="goalModalTitle">Set Goal</div>
+    <input class="form-input" id="goalInput" type="number" inputmode="numeric" />
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeGoalModal()">Cancel</button>
+      <button class="btn-save" onclick="saveGoal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Modal -->
+<div class="modal-overlay" id="manageModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-title">Manage Menu</div>
+    <div class="menu-manage-list" id="menuManageList"></div>
+    <div class="manage-divider"></div>
+    <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Add New Item</div>
+    <div class="form-row">
+      <input class="form-input" id="newItemEmoji" type="text" placeholder="🍳" style="width:50px;flex-shrink:0;text-align:center;" maxlength="2" />
+      <input class="form-input" id="newItemName" type="text" placeholder="Name" />
+    </div>
+    <div class="form-row">
+      <div style="flex:1">
+        <div class="input-label">Calories</div>
+        <input class="form-input" id="newItemCal" type="number" placeholder="kcal" inputmode="numeric" />
+      </div>
+      <div style="flex:1">
+        <div class="input-label">Protein (g)</div>
+        <input class="form-input" id="newItemProtein" type="number" placeholder="0" inputmode="numeric" />
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="add-btn" onclick="addMenuItem()">Add</button>
+      </div>
+    </div>
+    <div class="modal-btns" style="margin-top:8px;">
+      <button class="btn-save" onclick="closeManageModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TODAY = new Date().toDateString();
+
+const DEFAULT_MENU = [
+  { id: 1,  emoji: '🍳', name: 'Egg & Toast (1 egg+whites)',   cal: 166, protein: 12 },
+  { id: 2,  emoji: '🥣', name: 'Muesli & Low Fat Yogurt',      cal: 300, protein: 10 },
+  { id: 3,  emoji: '🍗', name: 'Grilled Chicken (150g)',       cal: 165, protein: 35 },
+  { id: 4,  emoji: '🥦', name: 'Veggies (1 cup)',               cal: 60,  protein: 4  },
+  { id: 5,  emoji: '🥔', name: 'Potato Wedges',                 cal: 200, protein: 3  },
+  { id: 12, emoji: '🫘', name: 'Sugar Bean Curry + 2 Wraps',   cal: 494, protein: 18 },
+  { id: 13, emoji: '🍛', name: 'Chicken Curry + 2 Wraps',      cal: 544, protein: 36 },
+  { id: 6,  emoji: '🍺', name: 'Castle Light (350ml)',          cal: 105, protein: 1  },
+  { id: 7,  emoji: '🐟', name: 'Flying Fish (330ml)',           cal: 185, protein: 1  },
+  { id: 14, emoji: '🥤', name: 'Pepsi Max (250ml)',             cal: 1,   protein: 0  },
+  { id: 15, emoji: '☕', name: 'Cappuccino (low fat milk)',     cal: 80,  protein: 5  },
+  { id: 8,  emoji: '🍦', name: 'Magnum Mini',                   cal: 150, protein: 2  },
+  { id: 16, emoji: '⚡', name: 'Vooma Energy Bar (25g)',         cal: 65,  protein: 1  },
+  { id: 17, emoji: '🥛', name: 'First Choice Recovery (250ml)', cal: 209, protein: 21 },
+  { id: 9,  emoji: '💪', name: 'Plato Whey (1 scoop)',          cal: 120, protein: 22 },
+  { id: 10, emoji: '🏋️', name: 'Hardcore GH (1 scoop)',         cal: 141, protein: 26 },
+  { id: 18, emoji: '🌙', name: 'Biogen Casein (1 scoop)',       cal: 120, protein: 23 },
+  { id: 11, emoji: '🌙', name: 'Casein Night (2 scoops)',       cal: 250, protein: 32 },
+];
+
+function loadState() {
+  const saved = localStorage.getItem('caltrack_v3');
+  if (saved) {
+    const data = JSON.parse(saved);
+    if (data.lastDate !== TODAY) { data.log = []; data.tapCounts = {}; data.lastDate = TODAY; }
+    if (!data.tapCounts) data.tapCounts = {};
+    if (data.restDay === undefined) { data.restDay = false; }
+    if (!data.calGoal || data.calGoal === 2000) { data.calGoal = data.restDay ? 2300 : 2400; }
+    if (!data.customHistory) data.customHistory = [];
+    return data;
+  }
+  return { calGoal: 2400, proteinGoal: 150, lastDate: TODAY, log: [], menu: DEFAULT_MENU, tapCounts: {}, restDay: false, customHistory: [] };
+}
+
+function saveState() { localStorage.setItem('caltrack_v3', JSON.stringify(state)); }
+let state = loadState();
+
+document.getElementById('dateLabel').textContent = new Date().toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long' });
+
+// ── RENDER ──────────────────────────────────────────────
+function render() {
+  const totalCal  = state.log.reduce((s, e) => s + e.cal, 0);
+  const totalProt = state.log.reduce((s, e) => s + (e.protein || 0), 0);
+  const calPct    = Math.min((totalCal  / state.calGoal)     * 100, 100);
+  const protPct   = Math.min((totalProt / state.proteinGoal) * 100, 100);
+
+  // Stat boxes
+  const calEl = document.getElementById('totalCals');
+  calEl.textContent = totalCal;
+  const calRem = state.calGoal - totalCal;
+  if (totalCal > state.calGoal) {
+    calEl.className = 'stat-value over-goal';
+    document.getElementById('calRemaining').innerHTML = `<span style="color:var(--danger)">${Math.abs(calRem)}</span> over`;
+  } else {
+    calEl.className = 'stat-value on-track';
+    document.getElementById('calRemaining').innerHTML = `<span>${calRem}</span> left`;
+  }
+
+  document.getElementById('totalProtein').textContent = totalProt;
+  const protRem = state.proteinGoal - totalProt;
+  document.getElementById('proteinRemaining').innerHTML = protRem > 0
+    ? `<span>${protRem}g</span> left`
+    : `<span style="color:var(--success)">goal hit ✓</span>`;
+
+  // Progress bars
+  const calBar = document.getElementById('calBar');
+  calBar.style.width = calPct + '%';
+  calBar.style.background = totalCal > state.calGoal ? 'var(--danger)'
+    : totalCal > state.calGoal * 0.85 ? 'var(--accent2)' : 'var(--accent)';
+  document.getElementById('calPct').textContent     = Math.round(calPct)  + '%';
+  document.getElementById('proteinBar').style.width = protPct + '%';
+  document.getElementById('proteinPct').textContent = Math.round(protPct) + '%';
+
+  // Menu grid
+  document.getElementById('menuGrid').innerHTML = state.menu.map(item => {
+    const count = state.tapCounts?.[item.id] || 0;
+    const hasTaps = count > 0;
+    return `
+    <div class="menu-item${hasTaps ? ' has-taps' : ''}" id="mi-${item.id}" onclick="addFromMenu(${item.id}, event)">
+      <div class="tap-count-badge" id="badge-${item.id}">${count > 1 ? 'x' + count : '✓'}</div>
+      <div class="menu-item-emoji">${item.emoji}</div>
+      <div class="menu-item-name">${item.name}</div>
+      <div class="menu-item-macros">
+        <span class="menu-item-cal">${item.cal}</span><span class="menu-item-cal-unit">kcal</span>
+        ${item.protein ? `<span class="menu-item-protein">${item.protein}g 💪</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Log
+  const list = document.getElementById('logList');
+  const totalsRow = document.getElementById('logTotalsRow');
+
+  if (state.log.length === 0) {
+    list.innerHTML = '<div class="empty-log">Nothing logged yet — start eating!</div>';
+    totalsRow.style.display = 'none';
+  } else {
+    totalsRow.style.display = 'flex';
+    document.getElementById('logTotalCal').textContent  = totalCal;
+    document.getElementById('logTotalProt').textContent = totalProt;
+
+    list.innerHTML = [...state.log].reverse().map(e => `
+      <div class="log-item">
+        <span class="log-name">${e.emoji ? e.emoji + ' ' : ''}${e.name}</span>
+        <span class="log-time">${e.time}</span>
+        <div class="log-macros">
+          <span class="log-cal">${e.cal}</span>
+          ${e.protein ? `<span class="log-protein">${e.protein}g</span>` : ''}
+        </div>
+        <button class="remove-btn" onclick="removeEntry('${e.id}')">×</button>
+      </div>
+    `).join('');
+  }
+
+  saveState();
+}
+
+// ── ADD FROM MENU (with tap feedback + persistent counter) ─
+function addFromMenu(id, event) {
+  const item = state.menu.find(m => m.id === id);
+  if (!item) return;
+
+  // Update tap count
+  if (!state.tapCounts) state.tapCounts = {};
+  state.tapCounts[id] = (state.tapCounts[id] || 0) + 1;
+  const count = state.tapCounts[id];
+
+  const card  = document.getElementById('mi-' + id);
+  const badge = document.getElementById('badge-' + id);
+
+  if (card) {
+    // Ripple
+    if (event) {
+      const rect   = card.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      const size = Math.max(rect.width, rect.height);
+      ripple.style.cssText = `width:${size}px;height:${size}px;left:${event.clientX - rect.left - size/2}px;top:${event.clientY - rect.top - size/2}px;`;
+      card.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 500);
+    }
+
+    // Flash
+    card.classList.remove('tapped');
+    void card.offsetWidth;
+    card.classList.add('tapped');
+    setTimeout(() => card.classList.remove('tapped'), 500);
+
+    // Persistent gold border + badge
+    card.classList.add('has-taps');
+    if (badge) {
+      badge.textContent = count > 1 ? 'x' + count : '✓';
+      badge.classList.remove('pop');
+      void badge.offsetWidth;
+      badge.classList.add('pop');
+    }
+  }
+
+  // Log the entry
+  const now = new Date();
+  state.log.push({
+    id: Date.now() + Math.random(),
+    name: item.name, emoji: item.emoji,
+    cal: item.cal, protein: item.protein || 0,
+    time: now.toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' })
+  });
+
+  renderStats();
+  renderLog();
+  saveState();
+  renderRestDayBtn();
+}
+
+// Split render for smoother tap experience
+function renderStats() {
+  const totalCal  = state.log.reduce((s, e) => s + e.cal, 0);
+  const totalProt = state.log.reduce((s, e) => s + (e.protein || 0), 0);
+  const calPct    = Math.min((totalCal  / state.calGoal)     * 100, 100);
+  const protPct   = Math.min((totalProt / state.proteinGoal) * 100, 100);
+
+  const calEl = document.getElementById('totalCals');
+  calEl.textContent = totalCal;
+  const calRem = state.calGoal - totalCal;
+  if (totalCal > state.calGoal) {
+    calEl.className = 'stat-value over-goal';
+    document.getElementById('calRemaining').innerHTML = `<span style="color:var(--danger)">${Math.abs(calRem)}</span> over`;
+  } else {
+    calEl.className = 'stat-value on-track';
+    document.getElementById('calRemaining').innerHTML = `<span>${calRem}</span> left`;
+  }
+  document.getElementById('totalProtein').textContent = totalProt;
+  const protRem = state.proteinGoal - totalProt;
+  document.getElementById('proteinRemaining').innerHTML = protRem > 0
+    ? `<span>${protRem}g</span> left`
+    : `<span style="color:var(--success)">goal hit ✓</span>`;
+
+  const calBar = document.getElementById('calBar');
+  calBar.style.width = calPct + '%';
+  calBar.style.background = totalCal > state.calGoal ? 'var(--danger)'
+    : totalCal > state.calGoal * 0.85 ? 'var(--accent2)' : 'var(--accent)';
+  document.getElementById('calPct').textContent     = Math.round(calPct)  + '%';
+  document.getElementById('proteinBar').style.width = protPct + '%';
+  document.getElementById('proteinPct').textContent = Math.round(protPct) + '%';
+}
+
+function renderLog() {
+  const totalCal  = state.log.reduce((s, e) => s + e.cal, 0);
+  const totalProt = state.log.reduce((s, e) => s + (e.protein || 0), 0);
+  const list = document.getElementById('logList');
+  const totalsRow = document.getElementById('logTotalsRow');
+
+  if (state.log.length === 0) {
+    list.innerHTML = '<div class="empty-log">Nothing logged yet — start eating!</div>';
+    totalsRow.style.display = 'none';
+  } else {
+    totalsRow.style.display = 'flex';
+    document.getElementById('logTotalCal').textContent  = totalCal;
+    document.getElementById('logTotalProt').textContent = totalProt;
+    list.innerHTML = [...state.log].reverse().map(e => `
+      <div class="log-item">
+        <span class="log-name">${e.emoji ? e.emoji + ' ' : ''}${e.name}</span>
+        <span class="log-time">${e.time}</span>
+        <div class="log-macros">
+          <span class="log-cal">${e.cal}</span>
+          ${e.protein ? `<span class="log-protein">${e.protein}g</span>` : ''}
+        </div>
+        <button class="remove-btn" onclick="removeEntry('${e.id}')">×</button>
+      </div>
+    `).join('');
+  }
+}
+
+// ── CUSTOM ENTRY ─────────────────────────────────────────
+function addCustom() {
+  const name    = document.getElementById('customName').value.trim();
+  const cal     = parseInt(document.getElementById('customCal').value);
+  const protein = parseFloat(document.getElementById('customProtein').value) || 0;
+  if (!name || isNaN(cal) || cal <= 0) return;
+
+  // Save to persistent history (dedup by name, most recent first, max 20)
+  state.customHistory = state.customHistory.filter(h => h.name.toLowerCase() !== name.toLowerCase());
+  state.customHistory.unshift({ name, cal, protein });
+  if (state.customHistory.length > 20) state.customHistory = state.customHistory.slice(0, 20);
+  saveState(); // persist history immediately, don't wait for render()
+
+  const now = new Date();
+  state.log.push({
+    id: Date.now() + Math.random(),
+    name, emoji: '', cal, protein,
+    time: now.toLocaleTimeString('en-ZA', { hour:'2-digit', minute:'2-digit' })
+  });
+  document.getElementById('customName').value    = '';
+  document.getElementById('customCal').value     = '';
+  document.getElementById('customProtein').value = '';
+  document.getElementById('lookupResult').style.display = 'none';
+  closeHistoryDropdown();
+  render();
+}
+
+// ── BUILT-IN NUTRITION TABLE (instant offline lookup) ────
+const NUTRITION_DB = [
+  // ── EGGS & DAIRY ────────────────────────────────────────
+  { k:['egg','eggs','whole egg'],                        cal:78,  protein:6,  note:'1 large whole egg (50g)' },
+  { k:['egg white','egg whites'],                        cal:17,  protein:4,  note:'1 large egg white (33g)' },
+  { k:['scrambled egg','scrambled eggs'],                cal:148, protein:10, note:'2 scrambled eggs with spray' },
+  { k:['boiled egg','hard boiled egg'],                  cal:78,  protein:6,  note:'1 large hard boiled egg (50g)' },
+  { k:['fried egg'],                                     cal:90,  protein:6,  note:'1 large fried egg, minimal oil' },
+  { k:['omelette','omelet'],                             cal:154, protein:11, note:'2-egg omelette with spray (no filling)' },
+  { k:['milk','full cream milk'],                        cal:149, protein:8,  note:'250ml full cream milk' },
+  { k:['low fat milk','skim milk','2% milk'],            cal:86,  protein:8,  note:'250ml low fat milk' },
+  { k:['yogurt','low fat yogurt','plain yogurt'],        cal:100, protein:9,  note:'175g low fat plain yogurt' },
+  { k:['greek yogurt'],                                  cal:100, protein:17, note:'170g plain greek yogurt' },
+  { k:['cheddar','cheddar cheese'],                      cal:113, protein:7,  note:'30g cheddar cheese' },
+  { k:['cottage cheese'],                                cal:90,  protein:12, note:'100g low fat cottage cheese' },
+  { k:['cream cheese'],                                  cal:99,  protein:2,  note:'2 tbsp cream cheese (29g)' },
+  { k:['mozzarella'],                                    cal:85,  protein:6,  note:'30g mozzarella' },
+  { k:['milk powder','skim milk powder'],                cal:109, protein:11, note:'30g skim milk powder' },
+  { k:['ice cream'],                                     cal:137, protein:2,  note:'half cup vanilla ice cream (66g)' },
+  { k:['whipped cream'],                                 cal:52,  protein:0,  note:'2 tbsp whipped cream (30g)' },
+  // ── BREAD, GRAINS & STARCHES ─────────────────────────────
+  { k:['brown bread','brown toast','toast'],             cal:90,  protein:3,  note:'1 slice brown bread (30g)' },
+  { k:['white bread','white toast'],                     cal:95,  protein:3,  note:'1 slice white bread (30g)' },
+  { k:['wrap','tortilla','albany wrap'],                 cal:122, protein:4,  note:'1 Albany brown wrap (45g)' },
+  { k:['rye bread','rye'],                               cal:83,  protein:3,  note:'1 slice rye bread (32g)' },
+  { k:['pita','pita bread'],                             cal:165, protein:5,  note:'1 whole pita (60g)' },
+  { k:['bagel'],                                         cal:270, protein:10, note:'1 medium plain bagel (105g)' },
+  { k:['croissant'],                                     cal:272, protein:5,  note:'1 medium croissant (57g)' },
+  { k:['white rice','cooked white rice'],                cal:206, protein:4,  note:'1 cup cooked white rice (186g)' },
+  { k:['brown rice'],                                    cal:216, protein:5,  note:'1 cup cooked brown rice (195g)' },
+  { k:['basmati rice'],                                  cal:200, protein:4,  note:'1 cup cooked basmati (175g)' },
+  { k:['oats','oatmeal','rolled oats','porridge'],       cal:150, protein:5,  note:'40g dry oats' },
+  { k:['muesli'],                                        cal:200, protein:6,  note:'50g muesli (no milk)' },
+  { k:['cornflakes','corn flakes'],                      cal:101, protein:2,  note:'30g cornflakes (no milk)' },
+  { k:['all bran','bran flakes'],                        cal:95,  protein:4,  note:'30g all-bran flakes' },
+  { k:['pasta','spaghetti','penne','macaroni'],          cal:220, protein:8,  note:'1 cup cooked pasta (140g)' },
+  { k:['noodles','egg noodles'],                         cal:220, protein:7,  note:'1 cup cooked noodles (160g)' },
+  { k:['couscous'],                                      cal:176, protein:6,  note:'1 cup cooked couscous (157g)' },
+  { k:['quinoa'],                                        cal:222, protein:8,  note:'1 cup cooked quinoa (185g)' },
+  { k:['mealie pap','pap','samp','maize meal'],          cal:190, protein:4,  note:'1 cup cooked pap (240g)' },
+  { k:['potato wedges','wedges'],                        cal:200, protein:3,  note:'150g oven-baked wedges' },
+  { k:['baked potato','potato'],                         cal:161, protein:4,  note:'1 medium baked potato (173g)' },
+  { k:['sweet potato','yam'],                            cal:103, protein:2,  note:'100g baked sweet potato' },
+  { k:['french fries','chips','fries'],                  cal:312, protein:4,  note:'medium portion fries (117g)' },
+  { k:['mashed potato','mash'],                         cal:174, protein:4,  note:'1 cup mashed potato (210g)' },
+  // ── MEAT & POULTRY ───────────────────────────────────────
+  { k:['chicken breast','grilled chicken'],              cal:165, protein:31, note:'150g grilled skinless breast' },
+  { k:['chicken thigh'],                                 cal:209, protein:26, note:'150g grilled chicken thigh' },
+  { k:['chicken wing','chicken wings'],                  cal:203, protein:17, note:'3 medium wings (100g)' },
+  { k:['chicken drumstick','drumstick'],                 cal:172, protein:22, note:'1 medium drumstick (110g)' },
+  { k:['rotisserie chicken'],                            cal:190, protein:28, note:'150g rotisserie breast, no skin' },
+  { k:['beef mince','mince','ground beef'],              cal:218, protein:24, note:'100g lean beef mince cooked' },
+  { k:['steak','beef steak','sirloin'],                  cal:271, protein:37, note:'150g lean grilled steak' },
+  { k:['rump steak','rump'],                             cal:250, protein:35, note:'150g grilled rump steak' },
+  { k:['beef fillet','fillet'],                          cal:220, protein:36, note:'150g beef fillet grilled' },
+  { k:['lamb chop','lamb chops'],                        cal:294, protein:26, note:'2 small lamb chops (150g)' },
+  { k:['pork chop','pork'],                              cal:231, protein:32, note:'150g grilled pork chop' },
+  { k:['bacon','streaky bacon'],                         cal:161, protein:11, note:'3 rashers streaky bacon (45g)' },
+  { k:['back bacon'],                                    cal:120, protein:14, note:'3 rashers back bacon (45g)' },
+  { k:['ham','sliced ham'],                              cal:92,  protein:14, note:'3 slices ham (85g)' },
+  { k:['boerewors'],                                     cal:320, protein:18, note:'1 boerewors coil (100g)' },
+  { k:['vienna','viennas','frankfurter'],                cal:183, protein:7,  note:'2 viennas (90g)' },
+  { k:['braai chop','braai','chop'],                     cal:280, protein:24, note:'1 braai chop (120g)' },
+  { k:['sosatie','sosaties'],                            cal:210, protein:19, note:'2 sosaties (100g)' },
+  // ── FISH & SEAFOOD ───────────────────────────────────────
+  { k:['tuna','canned tuna','tuna tin'],                 cal:109, protein:25, note:'1 can tuna in water (120g)' },
+  { k:['salmon','grilled salmon'],                       cal:208, protein:28, note:'150g baked salmon fillet' },
+  { k:['pilchards','pilchard'],                          cal:185, protein:23, note:'100g pilchards in tomato sauce' },
+  { k:['hake','grilled hake'],                           cal:135, protein:28, note:'150g grilled hake fillet' },
+  { k:['sardines','sardine'],                            cal:191, protein:23, note:'1 tin sardines in oil (100g)' },
+  { k:['prawns','shrimp'],                               cal:99,  protein:21, note:'100g cooked prawns' },
+  { k:['calamari'],                                      cal:175, protein:18, note:'100g grilled calamari' },
+  { k:['fish fingers','fish sticks'],                    cal:200, protein:12, note:'4 fish fingers (100g)' },
+  // ── VEGETABLES ───────────────────────────────────────────
+  { k:['broccoli'],                                      cal:31,  protein:3,  note:'1 cup steamed broccoli (91g)' },
+  { k:['spinach','baby spinach'],                        cal:41,  protein:5,  note:'1 cup cooked spinach (180g)' },
+  { k:['butternut','butternut squash'],                  cal:82,  protein:2,  note:'1 cup cooked butternut (205g)' },
+  { k:['salad','mixed salad','green salad'],             cal:20,  protein:2,  note:'2 cups mixed leaves, no dressing' },
+  { k:['avocado','avo'],                                 cal:160, protein:2,  note:'half a medium avocado (75g)' },
+  { k:['carrot','carrots'],                              cal:52,  protein:1,  note:'1 medium carrot (61g)' },
+  { k:['tomato','tomatoes'],                             cal:22,  protein:1,  note:'1 medium tomato (123g)' },
+  { k:['cucumber'],                                      cal:16,  protein:1,  note:'half a cucumber (150g)' },
+  { k:['onion','onions'],                                cal:44,  protein:1,  note:'1 medium onion (110g)' },
+  { k:['mushroom','mushrooms'],                          cal:15,  protein:2,  note:'1 cup sliced mushrooms (70g)' },
+  { k:['green bean','green beans'],                      cal:31,  protein:2,  note:'1 cup cooked green beans (125g)' },
+  { k:['peas','green peas'],                             cal:67,  protein:4,  note:'half cup cooked peas (80g)' },
+  { k:['corn','sweetcorn','mielie'],                     cal:77,  protein:3,  note:'half cup cooked sweetcorn (82g)' },
+  { k:['cabbage','coleslaw'],                            cal:22,  protein:1,  note:'1 cup shredded cabbage (90g)' },
+  { k:['cauliflower'],                                   cal:25,  protein:2,  note:'1 cup steamed cauliflower (100g)' },
+  { k:['courgette','zucchini'],                          cal:17,  protein:1,  note:'1 medium courgette (113g)' },
+  { k:['beetroot','beets'],                              cal:44,  protein:2,  note:'half cup cooked beetroot (85g)' },
+  { k:['pepper','bell pepper','capsicum'],               cal:31,  protein:1,  note:'1 medium bell pepper (119g)' },
+  // ── LEGUMES & PULSES ─────────────────────────────────────
+  { k:['lentils','red lentils'],                         cal:230, protein:18, note:'1 cup cooked lentils (198g)' },
+  { k:['chickpeas','chick peas'],                        cal:269, protein:15, note:'1 cup cooked chickpeas (164g)' },
+  { k:['kidney beans','red beans'],                      cal:225, protein:15, note:'1 cup cooked kidney beans (177g)' },
+  { k:['sugar beans','sugar bean'],                      cal:220, protein:14, note:'1 cup cooked sugar beans (180g)' },
+  { k:['black beans'],                                   cal:227, protein:15, note:'1 cup cooked black beans (172g)' },
+  { k:['baked beans'],                                   cal:194, protein:13, note:'half tin baked beans (215g)' },
+  // ── FRUIT ────────────────────────────────────────────────
+  { k:['banana'],                                        cal:105, protein:1,  note:'1 medium banana (118g)' },
+  { k:['apple'],                                         cal:95,  protein:0,  note:'1 medium apple (182g)' },
+  { k:['orange'],                                        cal:62,  protein:1,  note:'1 medium orange (131g)' },
+  { k:['grapes'],                                        cal:104, protein:1,  note:'1 cup grapes (151g)' },
+  { k:['strawberries','strawberry'],                     cal:49,  protein:1,  note:'1 cup strawberries (152g)' },
+  { k:['mango'],                                         cal:107, protein:1,  note:'1 cup mango chunks (165g)' },
+  { k:['watermelon'],                                    cal:86,  protein:2,  note:'2 cups watermelon (280g)' },
+  { k:['pineapple'],                                     cal:82,  protein:1,  note:'1 cup pineapple chunks (165g)' },
+  { k:['pear'],                                          cal:101, protein:1,  note:'1 medium pear (178g)' },
+  { k:['peach'],                                         cal:59,  protein:1,  note:'1 medium peach (150g)' },
+  { k:['melon','spanspek','cantaloupe'],                 cal:54,  protein:1,  note:'1 cup cantaloupe (160g)' },
+  { k:['blueberries'],                                   cal:84,  protein:1,  note:'1 cup blueberries (148g)' },
+  { k:['dates','medjool dates'],                         cal:277, protein:2,  note:'5 medjool dates (100g)' },
+  { k:['raisins','dried fruit'],                         cal:130, protein:1,  note:'small handful raisins (40g)' },
+  // ── NUTS & SEEDS ─────────────────────────────────────────
+  { k:['peanut butter'],                                 cal:188, protein:8,  note:'2 tbsp peanut butter (32g)' },
+  { k:['almonds','almond'],                              cal:164, protein:6,  note:'30g almonds (~23 nuts)' },
+  { k:['cashews','cashew'],                              cal:157, protein:5,  note:'30g cashews (~18 nuts)' },
+  { k:['walnuts','walnut'],                              cal:185, protein:4,  note:'30g walnuts (~14 halves)' },
+  { k:['peanuts','groundnuts'],                          cal:166, protein:7,  note:'30g peanuts' },
+  { k:['mixed nuts'],                                    cal:173, protein:5,  note:'30g mixed nuts' },
+  { k:['sunflower seeds'],                               cal:165, protein:6,  note:'30g sunflower seeds' },
+  { k:['chia seeds'],                                    cal:138, protein:5,  note:'30g chia seeds (2 tbsp)' },
+  // ── SNACKS ───────────────────────────────────────────────
+  { k:['chips','crisps','lays'],                         cal:152, protein:2,  note:'30g packet chips' },
+  { k:['simba chips','simba'],                           cal:152, protein:2,  note:'30g Simba chips' },
+  { k:['popcorn'],                                       cal:93,  protein:3,  note:'3 cups air-popped popcorn (24g)' },
+  { k:['rice cakes','rice cake'],                        cal:70,  protein:1,  note:'2 plain rice cakes (18g)' },
+  { k:['biscuit','biscuits','tennis biscuits'],          cal:80,  protein:1,  note:'2 Tennis biscuits (18g)' },
+  { k:['marie biscuit','marie'],                         cal:75,  protein:1,  note:'3 Marie biscuits (21g)' },
+  { k:['chocolate','milk chocolate','bar'],              cal:155, protein:2,  note:'30g milk chocolate' },
+  { k:['dark chocolate'],                                cal:170, protein:2,  note:'30g dark chocolate (70%+)' },
+  { k:['cadbury','dairy milk'],                          cal:160, protein:2,  note:'30g Cadbury Dairy Milk' },
+  { k:['kitkat'],                                        cal:107, protein:1,  note:'1 KitKat finger (21g)' },
+  { k:['energy bar','cereal bar'],                       cal:130, protein:3,  note:'1 standard cereal bar (35g)' },
+  { k:['granola bar'],                                   cal:193, protein:4,  note:'1 granola bar (47g)' },
+  // ── FAST FOOD & TAKEAWAYS ────────────────────────────────
+  { k:['burger','beef burger'],                          cal:550, protein:28, note:'1 standard beef burger with bun' },
+  { k:['big mac','big mac burger'],                      cal:550, protein:25, note:'1 Big Mac' },
+  { k:['whopper'],                                       cal:657, protein:28, note:'1 Burger King Whopper' },
+  { k:['pizza','pizza slice'],                           cal:285, protein:12, note:'1 slice pizza (107g)' },
+  { k:['margarita pizza','margherita'],                  cal:250, protein:11, note:'1 slice margherita pizza' },
+  { k:['hot dog'],                                       cal:290, protein:11, note:'1 hot dog with bun' },
+  { k:['prego','prego roll'],                            cal:480, protein:28, note:'1 prego roll with steak' },
+  { k:['gatsby'],                                        cal:850, protein:32, note:'half gatsby (polony/chips)' },
+  { k:['bunny chow','bunny'],                            cal:650, protein:22, note:'quarter bunny chow (curry)' },
+  { k:['koeksister'],                                    cal:175, protein:2,  note:'1 koeksister (50g)' },
+  { k:['vetkoek'],                                       cal:280, protein:5,  note:'1 medium vetkoek (80g)' },
+  { k:['samoosa','samosa'],                              cal:130, protein:4,  note:'2 small samoosas (60g)' },
+  { k:['spring roll'],                                   cal:100, protein:3,  note:'1 small spring roll (45g)' },
+  { k:['sushi','sushi roll'],                            cal:255, protein:9,  note:'6-piece California roll' },
+  { k:['nandos chicken','nandos'],                       cal:290, protein:38, note:'quarter chicken, no skin' },
+  { k:['kfc chicken','kfc'],                             cal:320, protein:28, note:'1 KFC original piece (140g)' },
+  // ── SOUPS & STEWS ────────────────────────────────────────
+  { k:['tomato soup'],                                   cal:90,  protein:2,  note:'1 cup tomato soup (245ml)' },
+  { k:['vegetable soup'],                                cal:72,  protein:4,  note:'1 cup vegetable soup (245ml)' },
+  { k:['chicken soup'],                                  cal:75,  protein:6,  note:'1 cup chicken broth soup' },
+  { k:['oxtail'],                                        cal:420, protein:38, note:'1 cup oxtail stew (240g)' },
+  { k:['beef stew'],                                     cal:310, protein:28, note:'1 cup beef stew (240g)' },
+  { k:['chicken curry'],                                 cal:280, protein:28, note:'1 cup chicken curry (240g)' },
+  { k:['dhal','dal','lentil curry'],                     cal:190, protein:12, note:'1 cup dhal (240g)' },
+  // ── BREAKFAST ITEMS ──────────────────────────────────────
+  { k:['bacon and eggs','full breakfast'],               cal:400, protein:28, note:'2 eggs, 2 rashers bacon, toast' },
+  { k:['french toast'],                                  cal:300, protein:10, note:'2 slices French toast, no syrup' },
+  { k:['waffle','waffles'],                              cal:218, protein:6,  note:'1 plain waffle (75g)' },
+  { k:['pancake','pancakes'],                            cal:175, protein:5,  note:'1 medium pancake (77g), no topping' },
+  { k:['crumpet','crumpets'],                            cal:100, protein:3,  note:'1 crumpet (40g)' },
+  // ── DRINKS: COFFEE & HOT ────────────────────────────────
+  { k:['coffee','black coffee','americano'],             cal:5,   protein:0,  note:'240ml black coffee' },
+  { k:['cappuccino'],                                    cal:80,  protein:5,  note:'Regular cappuccino, low fat milk' },
+  { k:['latte','flat white'],                            cal:120, protein:6,  note:'Regular latte, low fat milk' },
+  { k:['espresso'],                                      cal:5,   protein:0,  note:'1 shot espresso (30ml)' },
+  { k:['hot chocolate'],                                 cal:192, protein:6,  note:'250ml hot chocolate (full cream)' },
+  { k:['tea','rooibos','rooibos tea'],                   cal:2,   protein:0,  note:'1 cup tea, no milk/sugar' },
+  { k:['tea with milk','tea milk'],                      cal:25,  protein:1,  note:'1 cup tea with 30ml milk' },
+  // ── DRINKS: COLD & JUICES ────────────────────────────────
+  { k:['orange juice','oj'],                             cal:112, protein:2,  note:'240ml orange juice' },
+  { k:['apple juice'],                                   cal:114, protein:0,  note:'240ml apple juice' },
+  { k:['smoothie','fruit smoothie'],                     cal:220, protein:4,  note:'300ml fruit smoothie' },
+  { k:['protein shake'],                                 cal:160, protein:25, note:'1 scoop whey + 250ml water' },
+  { k:['coke','coca cola'],                              cal:140, protein:0,  note:'330ml can Coke' },
+  { k:['diet coke','coke zero','coke light','pepsi max'],cal:1,   protein:0,  note:'330ml can diet Coke/Pepsi Max' },
+  { k:['sprite','fanta'],                                cal:135, protein:0,  note:'330ml can Sprite/Fanta' },
+  { k:['red bull','energy drink'],                       cal:114, protein:1,  note:'250ml Red Bull' },
+  { k:['water','sparkling water'],                       cal:0,   protein:0,  note:'any amount of water' },
+  { k:['coconut water'],                                 cal:46,  protein:2,  note:'240ml coconut water' },
+  // ── DRINKS: ALCOHOL ──────────────────────────────────────
+  { k:['beer','lager'],                                  cal:153, protein:1,  note:'340ml can regular beer' },
+  { k:['castle light'],                                  cal:105, protein:1,  note:'350ml Castle Light' },
+  { k:['flying fish'],                                   cal:185, protein:1,  note:'330ml Flying Fish' },
+  { k:['savanna','savanna cider'],                       cal:165, protein:0,  note:'330ml Savanna Dry' },
+  { k:['hunters','hunters dry'],                         cal:178, protein:0,  note:'330ml Hunters Dry' },
+  { k:['red wine','wine'],                               cal:125, protein:0,  note:'150ml glass red wine' },
+  { k:['white wine'],                                    cal:121, protein:0,  note:'150ml glass white wine' },
+  { k:['rose wine','rosé'],                              cal:120, protein:0,  note:'150ml glass rosé' },
+  { k:['spirits','vodka','gin','whisky','rum','tequila'],cal:97,  protein:0,  note:'1 tot (25ml) spirits' },
+  { k:['gin and tonic'],                                 cal:120, protein:0,  note:'1 G&T (25ml gin + 150ml tonic)' },
+  { k:['rum and coke'],                                  cal:185, protein:0,  note:'25ml rum + 180ml Coke' },
+  // ── CONDIMENTS & EXTRAS ──────────────────────────────────
+  { k:['tomato sauce','ketchup','heinz'],                cal:20,  protein:0,  note:'1 tbsp (17g)' },
+  { k:['mayonnaise','mayo'],                             cal:94,  protein:0,  note:'1 tbsp mayo (14g)' },
+  { k:['mustard'],                                       cal:10,  protein:1,  note:'1 tbsp mustard (15g)' },
+  { k:['olive oil','oil'],                               cal:119, protein:0,  note:'1 tbsp olive oil (14g)' },
+  { k:['butter'],                                        cal:102, protein:0,  note:'1 tbsp butter (14g)' },
+  { k:['margarine'],                                     cal:75,  protein:0,  note:'1 tbsp margarine (14g)' },
+  { k:['soy sauce'],                                     cal:8,   protein:1,  note:'1 tbsp soy sauce (16g)' },
+  { k:['honey'],                                         cal:64,  protein:0,  note:'1 tbsp honey (21g)' },
+  { k:['jam','strawberry jam'],                          cal:56,  protein:0,  note:'1 tbsp jam (20g)' },
+  { k:['sugar'],                                         cal:48,  protein:0,  note:'1 tbsp white sugar (12g)' },
+  { k:['salad dressing','thousand island'],              cal:73,  protein:0,  note:'2 tbsp salad dressing (30ml)' },
+  { k:['hummus'],                                        cal:70,  protein:3,  note:'2 tbsp hummus (30g)' },
+  { k:['guacamole'],                                     cal:96,  protein:1,  note:'2 tbsp guacamole (30g)' },
+  { k:['chakalaka'],                                     cal:55,  protein:2,  note:'half cup chakalaka (100g)' },
+  { k:['tomato relish','relish'],                        cal:40,  protein:1,  note:'2 tbsp tomato relish (30g)' },
+  // ── SUPPLEMENTS & PROTEIN ────────────────────────────────
+  { k:['whey protein','whey'],                           cal:120, protein:24, note:'1 scoop whey protein (30g)' },
+  { k:['casein protein','casein'],                       cal:120, protein:24, note:'1 scoop casein protein (30g)' },
+  { k:['creatine'],                                      cal:0,   protein:0,  note:'5g creatine monohydrate' },
+  { k:['bcaa','amino acid'],                             cal:15,  protein:4,  note:'1 serving BCAAs (5g powder)' },
+];
+
+function localNutritionLookup(query) {
+  const q = query.toLowerCase().trim();
+  // Exact match first
+  for (const item of NUTRITION_DB) {
+    if (item.k.some(k => k === q)) return item;
+  }
+  // Partial match
+  for (const item of NUTRITION_DB) {
+    if (item.k.some(k => q.includes(k) || k.includes(q))) return item;
+  }
+  return null;
+}
+
+// ── CALORIE LOOKUP (local DB → Open Food Facts fallback) ─
+async function lookupCalories() {
+  const name = document.getElementById('customName').value.trim();
+  if (!name) { document.getElementById('customName').focus(); return; }
+
+  const btn      = document.getElementById('lookupBtn');
+  const icon     = document.getElementById('lookupIcon');
+  const resultEl = document.getElementById('lookupResult');
+
+  btn.disabled = true;
+  icon.innerHTML = '<span class="spin">⟳</span>';
+  resultEl.style.display = 'none';
+  closeHistoryDropdown();
+
+  // 1. Try local DB first (instant, offline)
+  const local = localNutritionLookup(name);
+  if (local) {
+    document.getElementById('customCal').value     = local.cal;
+    document.getElementById('customProtein').value = local.protein;
+    resultEl.innerHTML = `<strong>${local.cal} kcal</strong> · <span style="color:var(--protein-color)">${local.protein}g protein</span><span style="color:var(--muted);font-size:11px;"> — ${local.note}</span>`;
+    resultEl.style.display = 'block';
+    resultEl.className = 'lookup-result';
+    btn.disabled = false;
+    icon.innerHTML = '🔍';
+    return;
+  }
+
+  // 2. Fallback to Open Food Facts
+  try {
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(name)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,nutriments,serving_size,serving_quantity`;
+    const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const data = await res.json();
+
+    const product = (data.products || []).find(p =>
+      p.nutriments && (p.nutriments['energy-kcal_serving'] || p.nutriments['energy-kcal_100g'])
+    );
+
+    if (product) {
+      const n       = product.nutriments;
+      const sq      = parseFloat(n.serving_quantity) || 100;
+      const cal     = Math.round(n['energy-kcal_serving'] || (n['energy-kcal_100g'] * sq / 100));
+      const rawProt = n['proteins_serving'] != null ? n['proteins_serving'] : (n['proteins_100g'] * sq / 100);
+      const protein = Math.round((rawProt || 0) * 10) / 10;
+      const serving = product.serving_size || (sq + 'g');
+      const pname   = product.product_name || name;
+
+      document.getElementById('customCal').value     = cal;
+      document.getElementById('customProtein').value = protein;
+      resultEl.innerHTML = `<strong>${cal} kcal</strong> · <span style="color:var(--protein-color)">${protein}g protein</span><span style="color:var(--muted);font-size:11px;"> — ${pname} · ${serving}</span>`;
+      resultEl.style.display = 'block';
+      resultEl.className = 'lookup-result';
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--muted)">No match for "<strong style="color:var(--text)">${name}</strong>" — enter values manually.</span>`;
+      resultEl.style.display = 'block';
+      resultEl.className = 'lookup-result';
+    }
+  } catch (err) {
+    resultEl.innerHTML = `<span style="color:var(--muted)">No match for "<strong style="color:var(--text)">${name}</strong>" — enter values manually.</span>`;
+    resultEl.style.display = 'block';
+    resultEl.className = 'lookup-result';
+  }
+
+  btn.disabled = false;
+  icon.innerHTML = '🔍';
+}
+
+
+// ── HELPERS ──────────────────────────────────────────────
+function removeEntry(id) {
+  state.log = state.log.filter(e => String(e.id) !== String(id));
+  render();
+}
+
+function resetDay() {
+  if (confirm("Reset today's log?")) { state.log = []; state.tapCounts = {}; render(); }
+}
+
+function toggleRestDay() {
+  state.restDay = !state.restDay;
+  state.calGoal = state.restDay ? 2300 : 2400;
+  renderRestDayBtn();
+  render();
+}
+
+function renderRestDayBtn() {
+  const btn = document.getElementById('restDayBtn');
+  if (btn) btn.className = 'rest-day-btn' + (state.restDay ? ' active' : '');
+}
+
+// ── GOALS ────────────────────────────────────────────────
+let goalType = 'cal';
+function openGoalModal(type) {
+  goalType = type;
+  document.getElementById('goalModalTitle').textContent = type === 'cal' ? 'Daily Calorie Goal' : 'Daily Protein Goal (g)';
+  document.getElementById('goalInput').value       = type === 'cal' ? state.calGoal : state.proteinGoal;
+  document.getElementById('goalInput').placeholder = type === 'cal' ? 'e.g. 2000' : 'e.g. 150';
+  document.getElementById('goalModal').classList.add('open');
+}
+function closeGoalModal() { document.getElementById('goalModal').classList.remove('open'); }
+function saveGoal() {
+  const v = parseFloat(document.getElementById('goalInput').value);
+  if (v > 0) { if (goalType === 'cal') state.calGoal = v; else state.proteinGoal = v; render(); }
+  closeGoalModal();
+}
+
+// ── MANAGE MENU ──────────────────────────────────────────
+function openManageModal()  { renderManageList(); document.getElementById('manageModal').classList.add('open'); }
+function closeManageModal() { document.getElementById('manageModal').classList.remove('open'); }
+
+function renderManageList() {
+  const list = document.getElementById('menuManageList');
+  list.innerHTML = state.menu.map(item => `
+    <div class="manage-item">
+      <span style="font-size:16px">${item.emoji}</span>
+      <span class="manage-item-name">${item.name}</span>
+      <div class="manage-item-macros">
+        <span class="manage-item-cal">${item.cal} kcal</span>
+        ${item.protein ? `<span class="manage-item-prot">${item.protein}g protein</span>` : ''}
+      </div>
+      <button class="remove-btn" onclick="removeMenuItem(${item.id})" style="margin-left:6px">×</button>
+    </div>
+  `).join('') || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:12px">No items yet</div>';
+}
+
+function removeMenuItem(id) { state.menu = state.menu.filter(m => m.id !== id); renderManageList(); render(); }
+
+function addMenuItem() {
+  const name    = document.getElementById('newItemName').value.trim();
+  const emoji   = document.getElementById('newItemEmoji').value.trim() || '🍽️';
+  const cal     = parseInt(document.getElementById('newItemCal').value);
+  const protein = parseFloat(document.getElementById('newItemProtein').value) || 0;
+  if (!name || isNaN(cal) || cal <= 0) return;
+  state.menu.push({ id: Date.now(), emoji, name, cal, protein });
+  document.getElementById('newItemName').value    = '';
+  document.getElementById('newItemEmoji').value   = '';
+  document.getElementById('newItemCal').value     = '';
+  document.getElementById('newItemProtein').value = '';
+  renderManageList(); render();
+}
+
+// ── EVENT LISTENERS ──────────────────────────────────────
+// ── CUSTOM HISTORY DROPDOWN ──────────────────────────────
+function openHistoryDropdown() {
+  const history = state.customHistory || [];
+  const listEl  = document.getElementById('historyList');
+  const dropdown = document.getElementById('historyDropdown');
+
+  if (history.length === 0) {
+    listEl.innerHTML = '<div class="history-empty">No history yet — items appear after you add them</div>';
+  } else {
+    const query = document.getElementById('customName').value.trim().toLowerCase();
+    const filtered = query
+      ? history.filter(h => h.name.toLowerCase().includes(query))
+      : history;
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="history-empty">No matches</div>';
+    } else {
+      listEl.innerHTML = filtered.slice(0, 10).map((h, i) => `
+        <div class="history-item" onclick="selectHistory(${history.indexOf(h)})">
+          <span class="history-item-name">${h.name}</span>
+          <div class="history-item-macros">
+            <span>${h.cal} kcal</span>
+            ${h.protein ? `<em>${h.protein}g 💪</em>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+  dropdown.classList.add('open');
+}
+
+function closeHistoryDropdown() {
+  document.getElementById('historyDropdown').classList.remove('open');
+}
+
+function selectHistory(index) {
+  const item = state.customHistory[index];
+  if (!item) return;
+  document.getElementById('customName').value    = item.name;
+  document.getElementById('customCal').value     = item.cal;
+  document.getElementById('customProtein').value = item.protein || '';
+  document.getElementById('lookupResult').style.display = 'none';
+  closeHistoryDropdown();
+}
+
+function clearHistory() {
+  if (confirm('Clear all custom entry history?')) {
+    state.customHistory = [];
+    saveState();
+    closeHistoryDropdown();
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const wrapper  = document.querySelector('.name-wrapper');
+  const dropdown = document.getElementById('historyDropdown');
+  if (wrapper && !wrapper.contains(e.target)) closeHistoryDropdown();
+});
+
+document.getElementById('customName').addEventListener('keydown', e => { if (e.key === 'Enter') lookupCalories(); });
+document.getElementById('customCal').addEventListener('keydown',  e => { if (e.key === 'Enter') addCustom(); });
+document.getElementById('customName').addEventListener('focus', openHistoryDropdown);
+document.getElementById('customName').addEventListener('input', openHistoryDropdown);
+document.getElementById('goalInput').addEventListener('keydown',  e => { if (e.key === 'Enter') saveGoal(); });
+document.getElementById('goalModal').addEventListener('click',   function(e) { if (e.target === this) closeGoalModal(); });
+document.getElementById('manageModal').addEventListener('click', function(e) { if (e.target === this) closeManageModal(); });
+
+render();
+
+// ── PWA: INJECT MANIFEST ─────────────────────────────────
+(function() {
+  const icons = [
+    { size: 192, bg: '#0f0f0e', fg: '#e8c547' },
+    { size: 512, bg: '#0f0f0e', fg: '#e8c547' }
+  ];
+
+  function makeIconDataUrl(size, bg, fg) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    const r = size * 0.15;
+    // rounded rect background
+    ctx.beginPath();
+    ctx.moveTo(r, 0); ctx.lineTo(size - r, 0);
+    ctx.quadraticCurveTo(size, 0, size, r);
+    ctx.lineTo(size, size - r);
+    ctx.quadraticCurveTo(size, size, size - r, size);
+    ctx.lineTo(r, size); ctx.quadraticCurveTo(0, size, 0, size - r);
+    ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.closePath();
+    ctx.fillStyle = bg;
+    ctx.fill();
+    // text
+    const fs = Math.round(size * 0.38);
+    ctx.font = `900 ${fs}px serif`;
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('C·', size / 2, size * 0.52);
+    return c.toDataURL('image/png');
+  }
+
+  const iconList = icons.map(i => ({
+    src: makeIconDataUrl(i.size, i.bg, i.fg),
+    sizes: `${i.size}x${i.size}`,
+    type: 'image/png',
+    purpose: 'any maskable'
+  }));
+
+  const manifest = {
+    name: 'Cal · Track',
+    short_name: 'Cal·Track',
+    description: 'Personal calorie & protein tracker',
+    start_url: './',
+    display: 'standalone',
+    background_color: '#0f0f0e',
+    theme_color: '#0f0f0e',
+    orientation: 'portrait',
+    icons: iconList
+  };
+
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
+})();
+
+// ── PWA: SERVICE WORKER (offline cache) ─────────────────
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'caltrack-v1';
+    const PRECACHE = [
+      'https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;900&display=swap'
+    ];
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE).catch(() => {})));
+      self.skipWaiting();
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(caches.keys().then(keys =>
+        Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      ));
+      self.clients.claim();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => cached))
+      );
+    });
+  `;
+  const swBlob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl  = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl).catch(() => {});
+}
+
+// ── PWA: INSTALL PROMPT ──────────────────────────────────
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  document.getElementById('installBanner').style.display = 'flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').style.display = 'none';
+  deferredInstallPrompt = null;
+});
+
+function triggerInstall() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(() => {
+      deferredInstallPrompt = null;
+      document.getElementById('installBanner').style.display = 'none';
+    });
+  }
+}
+
+function dismissInstall() {
+  document.getElementById('installBanner').style.display = 'none';
+}
+</script>
+
+<!-- Install Banner (hidden until Chrome fires beforeinstallprompt) -->
+<div id="installBanner" style="
+  display: none;
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 448px;
+  background: #1a1a18;
+  border: 1px solid #e8c547;
+  border-radius: 14px;
+  padding: 14px 16px;
+  z-index: 200;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  font-family: 'DM Mono', monospace;
+">
+  <div style="font-size:22px;flex-shrink:0">📲</div>
+  <div style="flex:1;min-width:0">
+    <div style="font-size:12px;font-weight:500;color:#f0ede6">Add to Home Screen</div>
+    <div style="font-size:10px;color:#6b6860;margin-top:2px">Install Cal·Track as an app — works offline</div>
+  </div>
+  <button onclick="triggerInstall()" style="
+    background:#e8c547;color:#0f0f0e;border:none;border-radius:8px;
+    padding:8px 14px;font-family:'DM Mono',monospace;font-size:11px;
+    font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;
+  ">Install</button>
+  <button onclick="dismissInstall()" style="
+    background:none;border:none;color:#6b6860;font-size:18px;
+    cursor:pointer;padding:2px 4px;flex-shrink:0;line-height:1;
+  ">×</button>
+</div>
+
+</body>
+</html>
