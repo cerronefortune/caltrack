@@ -1398,7 +1398,9 @@ function localNutritionLookup(query) {
 }
 
 // ── CALORIE LOOKUP (local DB only — instant, works offline) ─
-function lookupCalories() {
+const WORKER_URL = 'https://caltrack-lookup.cerronefortune.workers.dev';
+
+async function lookupCalories() {
   const name     = document.getElementById('customName').value.trim();
   const btn      = document.getElementById('lookupBtn');
   const icon     = document.getElementById('lookupIcon');
@@ -1407,19 +1409,43 @@ function lookupCalories() {
   if (!name) { document.getElementById('customName').focus(); return; }
 
   btn.disabled = true;
-  icon.innerHTML = '⟳';
+  icon.innerHTML = '<span class="spin">⟳</span>';
   resultEl.style.display = 'none';
   closeHistoryDropdown();
 
+  // 1. Local DB first — instant, offline
   const local = localNutritionLookup(name);
-
   if (local) {
     document.getElementById('customCal').value     = local.cal;
     document.getElementById('customProtein').value = local.protein;
     resultEl.innerHTML = `<strong>${local.cal} kcal</strong> · <span style="color:var(--protein-color)">${local.protein}g protein</span><span style="color:var(--muted);font-size:11px;"> — ${local.note}</span>`;
     resultEl.className = 'lookup-result';
-  } else {
-    resultEl.innerHTML = `<span style="color:var(--muted)">No match for "<strong style="color:var(--text)">${name}</strong>" — try a different name or enter manually.</span>`;
+    resultEl.style.display = 'block';
+    btn.disabled = false;
+    icon.innerHTML = '🔍';
+    return;
+  }
+
+  // 2. Cloudflare Worker → Claude fallback
+  try {
+    const res  = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ food: name })
+    });
+    const data = await res.json();
+
+    if (data.cal !== undefined) {
+      document.getElementById('customCal').value     = data.cal;
+      document.getElementById('customProtein').value = data.protein || 0;
+      resultEl.innerHTML = `<strong>${data.cal} kcal</strong> · <span style="color:var(--protein-color)">${data.protein || 0}g protein</span><span style="color:var(--muted);font-size:11px;"> — ${data.note || name}</span>`;
+      resultEl.className = 'lookup-result';
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--muted)">No match for "<strong style="color:var(--text)">${name}</strong>" — enter values manually.</span>`;
+      resultEl.className = 'lookup-result';
+    }
+  } catch (err) {
+    resultEl.innerHTML = `<span style="color:var(--muted)">No match for "<strong style="color:var(--text)">${name}</strong>" — enter values manually.</span>`;
     resultEl.className = 'lookup-result';
   }
 
